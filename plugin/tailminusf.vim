@@ -1,22 +1,22 @@
 " File: tailminusf.vim
 " Author: Jason Heddings (vim at heddway dot com)
-" Version: 1.0
-" Last Modified: 04 October, 2005
+" Version: 1.1
+" Last Modified: 05 October, 2005
 "
 " See ':help tailminusf' for more information.
 "   
-if exists('g:loaded_tailminusf')
+if exists('g:TailMinusF_Loaded')
   finish
 endif
-let g:loaded_tailminusf = 1
+let g:TailMinusF_Loaded = 1
 
 
 " set the default options for the plugin
-if !exists("g:Tail_Minus_F_Height")
-  let g:Tail_Minus_F_Height = 10
+if !exists("g:TailMinusF_Height")
+  let g:TailMinusF_Height = 10
 endif
-if !exists("g:Tail_Minus_F_Center_Win")
-  let g:Tail_Minus_F_Center_Win = 0
+if !exists("g:TailMinusF_Center_Win")
+  let g:TailMinusF_Center_Win = 0
 endif
 
 
@@ -27,6 +27,7 @@ command -nargs=1 -complete=file Tail call TailMinusF(<q-args>)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " sets up the preview window to watch the specified file for changes
 function! TailMinusF(file)
+  let g:TailMinusF_status = "|"
   let l:file = substitute(expand(a:file), "\\", "/", "g")
 
   if !filereadable(l:file)
@@ -43,9 +44,9 @@ function! TailMinusF(file)
   " set it up to be watched closely
   augroup TailMinusF
     " monitor calls -- try to catch the update as much as possible
-    autocmd CursorHold * checktime
-    autocmd FocusLost * checktime
-    autocmd FocusGained * checktime
+    autocmd CursorHold * call TailMinusF_Monitor()
+    autocmd FocusLost * call TailMinusF_Monitor()
+    autocmd FocusGained * call TailMinusF_Monitor()
 
     " utility calls
     execute "autocmd BufWinEnter " . l:file . " call TailMinusF_Setup()"
@@ -54,8 +55,29 @@ function! TailMinusF(file)
   augroup END
 
   " set up the new window with minimal functionality
-  silent execute g:Tail_Minus_F_Height . "new " . l:file
+  silent execute g:TailMinusF_Height . "new " . l:file
 endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" used by TailMinusF to check the file status
+function! TailMinusF_Monitor()
+  " do our file change checks
+  checktime   " the easy check
+
+  " update the status indicator
+  if g:TailMinusF_status == "|"
+    let g:TailMinusF_status = "/"
+  elseif g:TailMinusF_status == "/"
+    let g:TailMinusF_status = "-"
+  elseif g:TailMinusF_status == "-"
+    let g:TailMinusF_status = "\\"
+  elseif g:TailMinusF_status == "\\"
+    let g:TailMinusF_status = "|"
+  endif
+  return g:TailMinusF_status
+endfunction
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " used by TailMinusF to set up the preview window settings
@@ -68,9 +90,11 @@ function! TailMinusF_Setup()
   setlocal nowrap
   setlocal nonumber
   setlocal previewwindow
+  "setlocal statusline=%F\ %{TailMinusF_Monitor()}
 
   call TailMinusF_SetCursor()
 endfunction
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " used by TailMinusF to refresh the window contents & position
@@ -102,15 +126,17 @@ function! TailMinusF_Refresh()
   endif
 endfunction
 
+
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " used by TailMinusF to set the cursor position in the preview window
 " assumes that the correct window has already been selected
 function! TailMinusF_SetCursor()
   normal G
-  if g:Tail_Minus_F_Center_Win
+  if g:TailMinusF_Center_Win
     normal zz
   endif
 endfunction
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " used by TailMinusF to stop watching the file and clean up
